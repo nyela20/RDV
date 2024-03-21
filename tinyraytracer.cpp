@@ -4,8 +4,11 @@
 #include <algorithm>
 #include <cmath>
 
+
 struct vec3 {
-    float x=0, y=0, z=0;
+
+    //float x=0, y=0, z=0;
+	float x, y, z;
           float& operator[](const int i)       { return i==0 ? x : (1==i ? y : z); }
     const float& operator[](const int i) const { return i==0 ? x : (1==i ? y : z); }
     vec3  operator*(const float v) const { return {x*v, y*v, z*v};       }
@@ -22,10 +25,15 @@ vec3 cross(const vec3 v1, const vec3 v2) {
 }
 
 struct Material {
-    float refractive_index = 1;
-    float albedo[4] = {2,0,0,0};
-    vec3 diffuse_color = {0,0,0};
-    float specular_exponent = 0;
+	/*float refractive_index = 1;
+	float albedo[4] = { 2,0,0,0 };
+	vec3 diffuse_color = { 0,0,0 };
+	float specular_exponent = 0;*/
+
+	float refractive_index;
+	float albedo[4] ;
+	vec3 diffuse_color ;
+	float specular_exponent ;
 };
 
 struct Sphere {
@@ -35,15 +43,22 @@ struct Sphere {
 };
 
 constexpr Material      ivory = {1.0, {0.9,  0.5, 0.1, 0.0}, {0.4, 0.4, 0.3},   50.};
+constexpr Material      white = {1.0, {0.9,  0.5, 0.0, 0.0}, {1.0, 1.0, 1.0},   50.};
+constexpr Material      black = {1.0, {0.9,  0.5, 0.0, 0.0}, {0.0, 0.0, 0.0},   50.};
+constexpr Material      brown = {1.0, {0.4,  0.0, 0.0, 0.0}, {0.5, 0.0, 0.0},   50.};
 constexpr Material      glass = {1.5, {0.0,  0.9, 0.1, 0.8}, {0.6, 0.7, 0.8},  125.};
-constexpr Material red_rubber = {1.0, {1.4,  0.3, 0.0, 0.0}, {0.3, 0.1, 0.1},   10.};
-constexpr Material     mirror = {1.0, {0.0, 16.0, 0.8, 0.0}, {1.0, 1.0, 1.0}, 1425.};
+constexpr Material      red_rubber = {1.0, {1.4,  0.3, 0.0, 0.0}, {0.3, 0.1, 0.1},   10.};
+constexpr Material      mirror = {1.0, {0.0, 16.0, 0.8, 0.0}, {1.0, 1.0, 1.0}, 1425.};
+
 
 constexpr Sphere spheres[] = {
-    {{-3,    0,   -16}, 2,      ivory},
-    {{-1.0, -1.5, -12}, 2,      glass},
-    {{ 1.5, -0.5, -18}, 3, red_rubber},
-    {{ 7,    5,   -18}, 4,     mirror}
+    {{0,    -1,   -16}, 3,      white},
+    {{0, 2.5, -15}, 2,      white},
+    {{0, 3, -13.425}, 0.5,      brown},
+    {{0, 2, -13.425}, 0.5,      brown},
+    {{0, 5, -14}, 1.5, white},
+    {{-0.5, 4.5, -11}, 0.125, black},
+    {{0.5, 4.5, -11}, 0.125, black}
 };
 
 constexpr vec3 lights[] = {
@@ -78,7 +93,8 @@ std::tuple<bool,float> ray_sphere_intersect(const vec3 &orig, const vec3 &dir, c
 
 std::tuple<bool,vec3,vec3,Material> scene_intersect(const vec3 &orig, const vec3 &dir) {
     vec3 pt, N;
-    Material material;
+    //Material material;
+	Material material = { 1,{ 2,0,0,0 },{ 0,0,0 },0 };
 
     float nearest_dist = 1e10;
     if (std::abs(dir.y)>.001) { // intersect the ray with the checkerboard, avoid division by zero
@@ -88,12 +104,15 @@ std::tuple<bool,vec3,vec3,Material> scene_intersect(const vec3 &orig, const vec3
             nearest_dist = d;
             pt = p;
             N = {0,1,0};
-            material.diffuse_color = (int(.5*pt.x+1000) + int(.5*pt.z)) & 1 ? vec3{.3, .3, .3} : vec3{.3, .2, .1};
+            material.diffuse_color = (int(.5f*pt.x+1000) + int(.5f*pt.z)) & 1 ? vec3{.3f, .3f, .3f} : vec3{.0f, .0f, .0f};
         }
     }
 
     for (const Sphere &s : spheres) { // intersect the ray with all spheres
-        auto [intersection, d] = ray_sphere_intersect(orig, dir, s);
+       // auto  [intersection, d] = ray_sphere_intersect(orig, dir, s);
+		auto tuplevalue = ray_sphere_intersect(orig, dir, s);
+		auto intersection =std::get<0>(tuplevalue);
+		auto d = std::get<1>(tuplevalue);
         if (!intersection || d > nearest_dist) continue;
         nearest_dist = d;
         pt = orig + dir*nearest_dist;
@@ -104,9 +123,14 @@ std::tuple<bool,vec3,vec3,Material> scene_intersect(const vec3 &orig, const vec3
 }
 
 vec3 cast_ray(const vec3 &orig, const vec3 &dir, const int depth=0) {
-    auto [hit, point, N, material] = scene_intersect(orig, dir);
+    //auto [hit, point, N, material] = scene_intersect(orig, dir);
+	auto tuplevalue = scene_intersect(orig, dir);
+	auto hit = std::get<0>(tuplevalue);
+	auto point = std::get<1>(tuplevalue);
+	auto N = std::get<2>(tuplevalue);
+	auto material = std::get<3>(tuplevalue);
     if (depth>4 || !hit)
-        return {0.2, 0.7, 0.8}; // background color
+        return {0.5f, 0.5f, 0.5f}; // background color
 
     vec3 reflect_dir = reflect(dir, N).normalized();
     vec3 refract_dir = refract(dir, N, material.refractive_index).normalized();
@@ -116,7 +140,12 @@ vec3 cast_ray(const vec3 &orig, const vec3 &dir, const int depth=0) {
     float diffuse_light_intensity = 0, specular_light_intensity = 0;
     for (const vec3 &light : lights) { // checking if the point lies in the shadow of the light
         vec3 light_dir = (light - point).normalized();
-        auto [hit, shadow_pt, trashnrm, trashmat] = scene_intersect(point, light_dir);
+        //auto [hit, shadow_pt, trashnrm, trashmat] = scene_intersect(point, light_dir);
+		auto tuplevalue = scene_intersect(point, light_dir);
+		auto hit = std::get<0>(tuplevalue);
+		auto shadow_pt = std::get<1>(tuplevalue);
+		auto trashnrm = std::get<2>(tuplevalue);
+		auto trashmat = std::get<3>(tuplevalue);
         if (hit && (shadow_pt-point).norm() < (light-point).norm()) continue;
         diffuse_light_intensity  += std::max(0.f, light_dir*N);
         specular_light_intensity += std::pow(std::max(0.f, -reflect(-light_dir, N)*dir), material.specular_exponent);
@@ -146,4 +175,3 @@ int main() {
     }
     return 0;
 }
-
